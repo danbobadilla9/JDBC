@@ -19,19 +19,36 @@ public class Transactions {
         // apagamos el autocommit
         connection.setAutoCommit(false);
         PreparedStatement ps = connection.prepareStatement("INSERT INTO person(name,last_name,nickname) VALUES(?,?,?)");
-        ps.setString(1,"israel");
-        ps.setString(2,"bobadilla");
-        ps.setString(3,"thedevil0");
-        ps.executeUpdate();
-        ps.setString(1,"sesef");
-        ps.setString(2,"jose");
-        ps.setString(3,"thedjos");
-        ps.executeUpdate();
-        ps.setString(1,"pepe");
-        ps.setString(2,"hernandez");
-        ps.setString(3,"thedevil0");
-        ps.executeUpdate();
-        connection.commit();
+        // creando un escenario de rollback junto con el error
+        Savepoint savepoint = null;
+        try{
+            ps.setString(1,"israel");
+            ps.setString(2,"bobadilla");
+            ps.setString(3,"thedevil0");
+            ps.executeUpdate();
+            savepoint = connection.setSavepoint("ok");
+            ps.setString(1,null);
+            ps.setString(2,"jose");
+            ps.setString(3,"thedjos");
+            ps.executeUpdate();
+            ps.setString(1,"pepe");
+            ps.setString(2,"hernandez");
+            ps.setString(3,"thedevil0");
+            ps.executeUpdate();
+            connection.commit();
+        }catch (SQLException e){
+            if(savepoint == null){
+                // rollback de todo
+                connection.rollback();
+            }else{
+                // rollback hasta el save point
+                connection.rollback(savepoint);
+            }
+            System.out.println("Rolling back because "+e.getMessage());
+        }finally {
+            connection.setAutoCommit(true);
+        }
+
         System.out.println("Records Persisted");
 
         PreparedStatement statement = connection.prepareStatement("SELECT*FROM person");

@@ -35,6 +35,8 @@ public class JdbcConnections {
             System.out.println("Rows impacted: " + rows);
 
 
+
+
             // uso de executeQuery
             PreparedStatement statementSelect = connection.prepareStatement("SELECT * FROM person");
             // uso de executeUpdate
