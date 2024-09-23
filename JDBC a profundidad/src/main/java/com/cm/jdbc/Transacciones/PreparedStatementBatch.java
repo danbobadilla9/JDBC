@@ -1,12 +1,12 @@
 package com.cm.jdbc.Transacciones;
 
+import com.github.javafaker.Faker;
 import org.h2.tools.RunScript;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.sql.*;
-
-public class Transactions {
+public class PreparedStatementBatch {
 
     public static void main(String[] args) throws SQLException, FileNotFoundException {
         System.out.println("Connecting");
@@ -16,37 +16,23 @@ public class Transactions {
         System.out.println("Executing script");
         RunScript.execute(connection, new FileReader("src/main/resources/schema.sql"));
         System.out.println("Script executed");
-        // apagamos el autocommit
-        connection.setAutoCommit(false);
         PreparedStatement ps = connection.prepareStatement("INSERT INTO person(name,last_name,nickname) VALUES(?,?,?)");
-        // creando un escenario de rollback junto con el error
-        Savepoint savepoint = null;
         try{
-            ps.setString(1,"israel");
-            ps.setString(2,"bobadilla");
-            ps.setString(3,"thedevil0");
-            ps.executeUpdate();
-            savepoint = connection.setSavepoint("ok");
-            ps.setString(1,null);
-            ps.setString(2,"jose");
-            ps.setString(3,"thedjos");
-            ps.executeUpdate();
-            connection.releaseSavepoint(savepoint);
-            ps.setString(1,"pepe");
-            ps.setString(2,"hernandez");
-            ps.setString(3,"thedevil0");
-            ps.executeUpdate();
-            connection.commit();
-        }catch (SQLException e){
-            if(savepoint == null){
-                // rollback de todo
-                connection.rollback();
-            }else{
-                // rollback hasta el save point
-                // al llamar al rollback va a lanzar un error porque se libero
-                connection.rollback(savepoint);
+            Faker faker = new Faker();
+            connection.setAutoCommit(false);
+            for (int i = 0; i < 100; i++) {
+                ps.setString(1,faker.name().firstName());
+                ps.setString(2,faker.name().lastName());
+                ps.setString(3,faker.gameOfThrones().character());
+                ps.addBatch();
             }
-            System.out.println("Rolling back because "+e.getMessage());
+            // si un registro tiene un error, el resto si se va a insertar
+            int[] rowsInserted = ps.executeBatch(); // numeros de registros impactados, en este caso solo seria solo uno
+            for(int rowsImpacted: rowsInserted){
+                System.out.println("Rowsimpacted: "+rowsImpacted);
+            }
+        }catch (SQLException e){
+            System.out.println("Error: "+e.getMessage());
         }finally {
             connection.setAutoCommit(true);
         }
@@ -62,7 +48,6 @@ public class Transactions {
 
         ps.close();
         connection.close();
-
     }
 
 }
